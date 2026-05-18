@@ -1,0 +1,51 @@
+export const CATEGORY_RULES = [
+  {
+    id: "uber-eats",
+    category: "Alimentação",
+    priority: 120,
+    matchType: "includes",
+    match: ["uber eats"],
+  },
+  {
+    id: "ifood-delivery",
+    category: "Alimentação",
+    priority: 110,
+    matchType: "includes",
+    match: ["ifood", "rappi", "aiqfome"],
+  },
+  {
+    id: "restaurant-food",
+    category: "Alimentação",
+    priority: 70,
+    matchType: "includes",
+    match: ["restaurante", "mercado", "padaria", "lanche", "forneria"],
+  },
+  {
+    id: "uber-transport",
+    category: "Transporte",
+    priority: 100,
+    matchType: "includes",
+    match: ["uber trip", "uber", "99 app", "taxi"],
+  },
+  {
+    id: "vehicle-costs",
+    category: "Transporte",
+    priority: 80,
+    matchType: "includes",
+    match: ["combustivel", "posto", "ipva", "estacionamento"],
+  },
+  {
+    id: "streaming-subscriptions",
+    category: "Assinaturas",
+    priority: 90,
+    matchType: "includes",
+    match: ["netflix", "spotify", "apple", "streaming", "claro", "vivo", "tim"],
+  },
+  {
+    id: "travel-lodging",
+    category: "Viagem",
+    priority: 85,
+    matchType: "includes",
+    match: ["airbnb", "hotel", "passagem", "booking", "decolar"],
+  },
+];
