@@ -24,8 +24,8 @@ import { fmt, fmtK } from "../utils/formatters";
 const TABS = ["Visão Geral", "Patrimônio", "Despesas", "Transações", "Investimentos"];
 
 export default function DashboardPage() {
-  const { profile, resetOnboarding } = useApp();
-  const [tab, setTab]           = useState(0);
+  const { profile, dashboardConfig, resetOnboarding } = useApp();
+  const [tab, setTab]           = useState(() => dashboardConfig?.initialTab ?? 0);
   const [mesSel, setMesSel]     = useState("Jan");
   const [filtroTipo, setFiltroTipo] = useState("Todos");
 
@@ -80,6 +80,16 @@ export default function DashboardPage() {
             </h1>
             <p style={{ margin:"1px 0 0", color:"#475569", fontSize:11, fontFamily:"'DM Mono',monospace" }}>
               {profile?.name ? `${profile.name} · ` : ""}{mesAtual}/2026
+              {dashboardConfig?.primaryGoalLabel && (
+                <span style={{
+                  marginLeft: 6,
+                  background: "#34d39911", border: "1px solid #34d39930",
+                  borderRadius: 10, padding: "1px 7px",
+                  color: "#34d399", fontSize: 10,
+                }}>
+                  {dashboardConfig.primaryGoalIcon} {dashboardConfig.primaryGoalLabel}
+                </span>
+              )}
             </p>
           </div>
           <div style={{

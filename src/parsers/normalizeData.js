@@ -32,7 +32,14 @@ const getFirst = (row, keys) => {
 };
 
 // ── Robust date → month extraction ─────────────────────────────────────────
-const MONTH_ABBR = { jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11 };
+const MONTH_ABBR = {
+  // Portuguese
+  jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11,
+  // English additions (non-conflicting)
+  feb:1, apr:3, may:4, aug:7, sep:8, oct:9, dec:11,
+  // Spanish additions (non-conflicting)
+  ene:0, dic:11,
+};
 
 const getMonthFromDate = (value) => {
   if (!value) return "";

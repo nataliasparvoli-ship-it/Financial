@@ -2,6 +2,7 @@ import { CATEGORY_ALIASES, INVALID_CATEGORY_ALIASES } from "./categoryAliases.js
 import { CATEGORY_RULES } from "./categoryRules.js";
 import { normalizeMerchant } from "./normalizeMerchant.js";
 import { loadUserRules } from "../storage/userRulesStorage.js";
+import { inferSubcategory } from "../services/categoryEngine.js";
 
 const STORAGE_KEY = "financial-dashboard.userRules.v1";
 
@@ -52,12 +53,14 @@ export const applyCategoryRules = ({
   // 1. Use imported category if valid
   const importedCategory = normalizeCategory(category, aliases);
   if (importedCategory) {
+    const nm = normalizeMerchant(description);
     return {
       category: importedCategory,
+      subcategory: inferSubcategory(importedCategory, description),
       source: "imported",
       confidence: 1.0,
       ruleId: null,
-      normalizedMerchant: normalizeMerchant(description),
+      normalizedMerchant: nm,
       matched: true,
     };
   }
@@ -70,6 +73,7 @@ export const applyCategoryRules = ({
   if (matchedUserRule) {
     return {
       category: matchedUserRule.category,
+      subcategory: matchedUserRule.subcategory || inferSubcategory(matchedUserRule.category, description),
       source: "user",
       confidence: 1.0,
       ruleId: matchedUserRule.id,
@@ -83,6 +87,7 @@ export const applyCategoryRules = ({
   if (matchedRule) {
     return {
       category: matchedRule.category,
+      subcategory: matchedRule.subcategory || inferSubcategory(matchedRule.category, description),
       source: "auto",
       confidence: computeConfidence(matchedRule, matchedRule.matchType),
       ruleId: matchedRule.id,
@@ -94,6 +99,7 @@ export const applyCategoryRules = ({
   // 4. Fallback
   return {
     category: "Outros",
+    subcategory: "Outros",
     source: "fallback",
     confidence: 0,
     ruleId: null,

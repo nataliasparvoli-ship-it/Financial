@@ -4,6 +4,7 @@
  * @property {string} data
  * @property {string} mes
  * @property {string} cat
+ * @property {string=} subcat
  * @property {string} desc
  * @property {string} tipo
  * @property {number} valor

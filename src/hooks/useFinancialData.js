@@ -50,17 +50,18 @@ export const useFinancialData = () => {
     }
   };
 
-  // Called when user corrects a category — learns for future imports
-  const handleCategoryChange = (txId, newCategory) => {
+  const handleCategoryChange = (txId, newCategory, newSubcategory = "") => {
     setImportedData((current) => {
       const tx = current.transacoes.find((t) => t.id === txId);
       if (tx?.normalizedMerchant) {
-        learnRule(tx.normalizedMerchant, newCategory);
+        learnRule(tx.normalizedMerchant, newCategory, newSubcategory);
       }
       return {
         ...current,
         transacoes: current.transacoes.map((t) =>
-          t.id === txId ? { ...t, cat: newCategory, categorySource: "user" } : t
+          t.id === txId
+            ? { ...t, cat: newCategory, subcat: newSubcategory, categorySource: "user" }
+            : t
         ),
       };
     });

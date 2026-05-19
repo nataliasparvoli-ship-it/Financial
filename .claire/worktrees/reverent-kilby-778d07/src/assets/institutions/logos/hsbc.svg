@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 56" fill="none">
+  <rect width="40" height="40" x="8" y="8" rx="12" fill="#DB0011"/>
+  <polygon points="28,14 36,28 28,42 20,28" fill="white"/>
+  <polygon points="28,20 34,28 28,36 22,28" fill="#DB0011"/>
+  <text x="56" y="35" font-family="system-ui,-apple-system,sans-serif" font-size="18" font-weight="700" fill="#DB0011" letter-spacing="1">HSBC</text>
+</svg>

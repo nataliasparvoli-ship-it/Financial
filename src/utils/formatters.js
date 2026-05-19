@@ -1,28 +1,21 @@
-export const fmt = (value) =>
-  `R$ ${Number(value || 0).toLocaleString("pt-BR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })}`;
+import { formatCurrency, formatCurrencyK } from "../services/currencyService.js";
 
-export const fmtK = (value) => {
-  const number = Number(value || 0);
+/** Short currency — "R$ 1.250" / "AED 1,250" / "$ 1,250" */
+export const fmt = (value) => formatCurrency(value);
 
-  if (Math.abs(number) >= 1000000) {
-    return `R$ ${(number / 1000000).toFixed(2)}M`;
-  }
+/** Compact currency — "R$ 1.5M" / "AED 500K" */
+export const fmtK = (value) => formatCurrencyK(value);
 
-  if (Math.abs(number) >= 1000) {
-    return `R$ ${(number / 1000).toFixed(0)}K`;
-  }
-
-  return fmt(number);
-};
-
+/**
+ * Parse a currency string to float.
+ * Handles pt-BR (1.250,90), en-US/AED (1,250.90), EUR (1.250,90).
+ */
 export const parseCurrency = (value) => {
   if (typeof value === "number") return value;
 
   const cleaned = String(value || "")
-    .replace(/R\$/gi, "")
+    .replace(/[A-Z]{2,4}/gi, "")  // remove currency codes (BRL, USD, AED, EUR…)
+    .replace(/R\$/gi, "")          // explicit R$
     .replace(/\s/g, "")
     .replace(/\((.*)\)/, "-$1")
     .replace(/[^0-9,.-]/g, "");
@@ -30,11 +23,11 @@ export const parseCurrency = (value) => {
   if (!cleaned) return 0;
 
   const lastComma = cleaned.lastIndexOf(",");
-  const lastDot = cleaned.lastIndexOf(".");
-  const decimalSeparator = lastComma > lastDot ? "," : ".";
+  const lastDot   = cleaned.lastIndexOf(".");
+  const decimalSep = lastComma > lastDot ? "," : ".";
   const normalized = cleaned
-    .replace(new RegExp(`\\${decimalSeparator === "," ? "." : ","}`, "g"), "")
-    .replace(decimalSeparator, ".");
+    .replace(new RegExp(`\\${decimalSep === "," ? "." : ","}`, "g"), "")
+    .replace(decimalSep, ".");
 
   return Number(normalized) || 0;
 };

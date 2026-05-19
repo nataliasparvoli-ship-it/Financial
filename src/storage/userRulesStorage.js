@@ -13,17 +13,17 @@ export const saveUserRules = (rules) => {
 };
 
 // Called when user corrects a category — learns a new rule
-export const learnRule = (normalizedMerchant, category) => {
+export const learnRule = (normalizedMerchant, category, subcategory = "") => {
   if (!normalizedMerchant || !category) return;
   const rules = loadUserRules();
 
-  // Remove any existing rule for this merchant
   const filtered = rules.filter((r) => !r.match.includes(normalizedMerchant));
 
   filtered.unshift({
     id: `user_${Date.now()}`,
     category,
-    priority: 300,  // always above system rules
+    subcategory,
+    priority: 300,
     matchType: "includes",
     match: [normalizedMerchant],
     source: "user",

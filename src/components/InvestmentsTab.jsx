@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { fmtK } from "../utils/formatters.js";
+import { formatDateToday } from "../services/formattingService.js";
 
 const TIPO_COLORS = {
   "Renda Fixa":"#60a5fa","Tesouro":"#34d399","FII":"#fbbf24",
@@ -9,24 +11,17 @@ const TIPO_COLORS = {
 
 const TIPOS = Object.keys(TIPO_COLORS);
 
-const fmtK = (v) => {
-  const n = Number(v) || 0;
-  if (Math.abs(n) >= 1e6) return `R$ ${(n/1e6).toFixed(2).replace(".",",")}M`;
-  if (Math.abs(n) >= 1e3) return `R$ ${(n/1e3).toFixed(1).replace(".",",")}K`;
-  return `R$ ${n.toLocaleString("pt-BR",{minimumFractionDigits:2})}`;
-};
-
 function ManualForm({ onAdd }) {
   const [f, setF] = useState({
     instituicao:"", nome:"", tipo:"Renda Fixa",
-    valor:"", data: new Date().toLocaleDateString("pt-BR"),
+    valor:"", data: formatDateToday(),
   });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = () => {
     if (!f.nome || !f.valor || !f.instituicao) return;
     onAdd({ ...f, valor: parseFloat(String(f.valor).replace(",",".")) || 0 });
-    setF({ instituicao:"", nome:"", tipo:"Renda Fixa", valor:"", data: new Date().toLocaleDateString("pt-BR") });
+    setF({ instituicao:"", nome:"", tipo:"Renda Fixa", valor:"", data: formatDateToday() });
   };
 
   return (

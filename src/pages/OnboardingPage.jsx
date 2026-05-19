@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useApp } from "../contexts/AppContext";
+import { SUPPORTED_COUNTRIES, SUPPORTED_CURRENCIES } from "../services/localeService.js";
+import { getInstitutionsByCountry } from "../services/institutionService.js";
+import InstitutionIcon from "../components/InstitutionIcon.jsx";
 
 /* ─── constants ─────────────────────────────────────────── */
 
@@ -15,20 +18,6 @@ const PRIMARY_GOALS = [
   { id: "freedom",  icon: "◻", label: "Independência financeira" },
 ];
 
-const INSTITUTIONS = [
-  { id: "nubank",   label: "Nubank",   color: "#820AD1" },
-  { id: "itau",     label: "Itaú",     color: "#EC7000" },
-  { id: "bradesco", label: "Bradesco", color: "#CC0000" },
-  { id: "xp",       label: "XP",       color: "#f1f5f9" },
-  { id: "btg",      label: "BTG",      color: "#60a5fa" },
-  { id: "inter",    label: "Inter",    color: "#FF7A00" },
-  { id: "rico",     label: "Rico",     color: "#00A651" },
-  { id: "clear",    label: "Clear",    color: "#00C8C8" },
-  { id: "binance",  label: "Binance",  color: "#F0B90B" },
-  { id: "avenue",   label: "Avenue",   color: "#60a5fa" },
-  { id: "sicoob",   label: "Sicoob",   color: "#34d399" },
-  { id: "c6",       label: "C6 Bank",  color: "#94a3b8" },
-];
 
 const GOAL_FIELDS = [
   { key: "patrimony",          icon: "◆", label: "Meta de patrimônio",       placeholder: "1.000.000" },
@@ -169,12 +158,21 @@ function StepWelcome({ onNext }) {
 
 /* ─── step 2: profile ───────────────────────────────────── */
 
-function StepProfile({ data, onChange, onNext, onBack }) {
+function StepProfile({ data, onChange, onNext }) {
   const valid = data.name.trim().length > 0 && data.incomeRange && data.primaryGoal;
+
+  const toggleSecondary = (id) => {
+    const current = data.secondaryGoals ?? [];
+    if (current.includes(id)) {
+      onChange("secondaryGoals", current.filter((g) => g !== id));
+    } else if (current.length < 2) {
+      onChange("secondaryGoals", [...current, id]);
+    }
+  };
 
   return (
     <div>
-      <p style={{ ...S.label, marginBottom: 4 }}>Passo 1 de 3</p>
+      <p style={{ ...S.label, marginBottom: 4 }}>Passo 1 de 4</p>
       <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 32px", color: "#f1f5f9" }}>
         Vamos te conhecer
       </h2>
@@ -183,9 +181,12 @@ function StepProfile({ data, onChange, onNext, onBack }) {
         <p style={S.label}>Como posso te chamar?</p>
         <input
           style={S.input}
+          type="text"
           placeholder="Seu nome"
           value={data.name}
           onChange={(e) => onChange("name", e.target.value)}
+          autoComplete="given-name"
+          inputMode="text"
           autoFocus
         />
       </div>
@@ -215,35 +216,75 @@ function StepProfile({ data, onChange, onNext, onBack }) {
         </div>
       </div>
 
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: data.primaryGoal ? 16 : 32 }}>
         <p style={S.label}>Objetivo principal</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {PRIMARY_GOALS.map((g) => (
             <button
               key={g.id}
-              onClick={() => onChange("primaryGoal", g.id)}
+              onClick={() => { onChange("primaryGoal", g.id); onChange("secondaryGoals", []); }}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
+                display: "flex", alignItems: "center", gap: 12,
                 background: data.primaryGoal === g.id ? "#34d39911" : "#0f172a",
                 border: `1px solid ${data.primaryGoal === g.id ? "#34d39966" : "#1e293b"}`,
-                borderRadius: 12,
-                padding: "13px 16px",
+                borderRadius: 12, padding: "13px 16px",
                 color: data.primaryGoal === g.id ? "#34d399" : "#94a3b8",
-                fontSize: 14,
-                fontFamily: "'Syne', sans-serif",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "all 0.15s",
+                fontSize: 14, fontFamily: "'Syne', sans-serif",
+                cursor: "pointer", textAlign: "left", transition: "all 0.15s",
               }}
             >
               <span style={{ fontSize: 16, opacity: 0.7 }}>{g.icon}</span>
               {g.label}
+              {data.primaryGoal === g.id && (
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "#34d399", fontFamily: "'DM Mono', monospace" }}>
+                  principal
+                </span>
+              )}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Secondary goals — appear after primary is chosen */}
+      {data.primaryGoal && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <p style={{ ...S.label, margin: 0 }}>Metas secundárias</p>
+            <span style={{
+              background: "#1e293b", borderRadius: 20, padding: "2px 8px",
+              fontSize: 10, color: "#475569", fontFamily: "'DM Mono', monospace",
+            }}>
+              opcional · máx. 2
+            </span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {PRIMARY_GOALS.filter((g) => g.id !== data.primaryGoal).map((g) => {
+              const active = (data.secondaryGoals ?? []).includes(g.id);
+              const maxed  = (data.secondaryGoals ?? []).length >= 2 && !active;
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => !maxed && toggleSecondary(g.id)}
+                  style={{
+                    background: active ? "#60a5fa11" : "#0f172a",
+                    border: `1px solid ${active ? "#60a5fa44" : "#1e293b"}`,
+                    borderRadius: 20,
+                    color: active ? "#60a5fa" : maxed ? "#2d3748" : "#64748b",
+                    padding: "7px 14px",
+                    fontSize: 12, fontFamily: "'DM Mono', monospace",
+                    cursor: maxed ? "not-allowed" : "pointer",
+                    transition: "all 0.15s",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  <span style={{ fontSize: 11, opacity: 0.8 }}>{g.icon}</span>
+                  {g.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <button
         style={{ ...S.btnPrimary, opacity: valid ? 1 : 0.4, cursor: valid ? "pointer" : "not-allowed" }}
@@ -255,12 +296,98 @@ function StepProfile({ data, onChange, onNext, onBack }) {
   );
 }
 
-/* ─── step 3: institutions ──────────────────────────────── */
+/* ─── step 3: location ──────────────────────────────────── */
 
-function StepInstitutions({ selected, onToggle, onNext, onSkip }) {
+function StepLocation({ data, onChange, onNext, onSkip }) {
+  const selectCountry = (country) => {
+    onChange("country", country.id);
+    onChange("currency", country.currency);
+  };
+
   return (
     <div>
-      <p style={{ ...S.label, marginBottom: 4 }}>Passo 2 de 3</p>
+      <p style={{ ...S.label, marginBottom: 4 }}>Passo 2 de 4</p>
+      <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px", color: "#f1f5f9" }}>
+        Onde você mora atualmente?
+      </h2>
+      <p style={{ color: "#64748b", fontSize: 14, margin: "0 0 24px", lineHeight: 1.5 }}>
+        Usamos isso para formatar moedas e datas corretamente.
+      </p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+        {SUPPORTED_COUNTRIES.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => selectCountry(c)}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              background: data.country === c.id ? "#34d39911" : "#0f172a",
+              border: `1px solid ${data.country === c.id ? "#34d39944" : "#1e293b"}`,
+              borderRadius: 12, padding: "12px 16px",
+              color: data.country === c.id ? "#f1f5f9" : "#94a3b8",
+              fontSize: 14, fontFamily: "'Syne', sans-serif",
+              cursor: "pointer", textAlign: "left", transition: "all 0.15s",
+            }}
+          >
+            <span style={{ fontSize: 20 }}>{c.flag}</span>
+            <span style={{ flex: 1 }}>{c.name}</span>
+            {data.country === c.id && (
+              <span style={{ fontSize: 11, color: "#34d399", fontFamily: "'DM Mono', monospace" }}>
+                {c.currency}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {data.country && (
+        <div style={{ marginBottom: 24 }}>
+          <p style={S.label}>Moeda principal</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {SUPPORTED_CURRENCIES.map((cur) => (
+              <button
+                key={cur.code}
+                onClick={() => onChange("currency", cur.code)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  background: data.currency === cur.code ? "#60a5fa11" : "#0f172a",
+                  border: `1px solid ${data.currency === cur.code ? "#60a5fa44" : "#1e293b"}`,
+                  borderRadius: 10, padding: "10px 14px",
+                  color: data.currency === cur.code ? "#60a5fa" : "#64748b",
+                  fontSize: 13, fontFamily: "'DM Mono', monospace",
+                  cursor: "pointer", textAlign: "left", transition: "all 0.15s",
+                }}
+              >
+                {cur.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button
+        style={{
+          ...S.btnPrimary,
+          opacity: data.country ? 1 : 0.4,
+          cursor: data.country ? "pointer" : "not-allowed",
+        }}
+        onClick={data.country ? onNext : undefined}
+      >
+        Continuar →
+      </button>
+      <button style={S.btnGhost} onClick={onSkip}>Pular por agora</button>
+    </div>
+  );
+}
+
+/* ─── step 4: institutions ──────────────────────────────── */
+
+function StepInstitutions({ selected, onToggle, onNext, onSkip, country }) {
+  const institutions = getInstitutionsByCountry(country);
+
+  return (
+    <div>
+      <p style={{ ...S.label, marginBottom: 4 }}>Passo 3 de 4</p>
       <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px", color: "#f1f5f9" }}>
         Onde você tem dinheiro?
       </h2>
@@ -274,7 +401,7 @@ function StepInstitutions({ selected, onToggle, onNext, onSkip }) {
         gap: 8,
         marginBottom: 32,
       }}>
-        {INSTITUTIONS.map((inst) => {
+        {institutions.map((inst) => {
           const active = selected.includes(inst.id);
           return (
             <button
@@ -293,16 +420,13 @@ function StepInstitutions({ selected, onToggle, onNext, onSkip }) {
                 transition: "all 0.15s",
               }}
             >
-              <div style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: active ? inst.color : "#1e293b",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "background 0.15s",
-              }}>
-                <span style={{ color: "#020617", fontWeight: 800, fontSize: 10 }}>
-                  {inst.label.slice(0, 2).toUpperCase()}
-                </span>
-              </div>
+              <InstitutionIcon
+                id={inst.id}
+                label={inst.label}
+                color={inst.color}
+                active={active}
+                size={32}
+              />
               <span style={{
                 fontSize: 11,
                 color: active ? "#f1f5f9" : "#64748b",
@@ -326,12 +450,15 @@ function StepInstitutions({ selected, onToggle, onNext, onSkip }) {
 
 /* ─── step 4: goals ─────────────────────────────────────── */
 
-function StepGoals({ data, onChange, onNext, onSkip }) {
+const CURRENCY_SYMBOLS = { BRL: "R$", USD: "$", AED: "AED" };
+
+function StepGoals({ data, onChange, onNext, onSkip, currency }) {
+  const currencyPrefix = CURRENCY_SYMBOLS[currency] ?? "R$";
   const hasAny = GOAL_FIELDS.some((f) => data[f.key]);
 
   return (
     <div>
-      <p style={{ ...S.label, marginBottom: 4 }}>Passo 3 de 3</p>
+      <p style={{ ...S.label, marginBottom: 4 }}>Passo 4 de 4</p>
       <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px", color: "#f1f5f9" }}>
         Defina suas metas
       </h2>
@@ -351,13 +478,14 @@ function StepGoals({ data, onChange, onNext, onSkip }) {
                 position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
                 color: "#334155", fontFamily: "'DM Mono', monospace", fontSize: 14,
                 pointerEvents: "none",
-              }}>R$</span>
+              }}>{currencyPrefix}</span>
               <input
                 style={{ ...S.input, paddingLeft: 36 }}
+                type="text"
                 placeholder={f.placeholder}
                 value={data[f.key] || ""}
                 onChange={(e) => onChange(f.key, e.target.value)}
-                inputMode="numeric"
+                inputMode="decimal"
               />
             </div>
           </div>
@@ -462,14 +590,14 @@ function StepFinish({ profile, goals, onEnter }) {
 
 /* ─── main page ─────────────────────────────────────────── */
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 export default function OnboardingPage() {
   const { completeOnboarding, updateGoals } = useApp();
 
   const [step, setStep]               = useState(0);
   const [fading, setFading]           = useState(false);
-  const [profile, setProfile]         = useState({ name: "", incomeRange: "", primaryGoal: "" });
+  const [profile, setProfile]         = useState({ name: "", incomeRange: "", primaryGoal: "", secondaryGoals: [], country: "", currency: "" });
   const [institutions, setInstitutions] = useState([]);
   const [goalsData, setGoalsData]     = useState({});
 
@@ -531,22 +659,32 @@ export default function OnboardingPage() {
             />
           )}
           {step === 2 && (
-            <StepInstitutions
-              selected={institutions}
-              onToggle={toggleInstitution}
+            <StepLocation
+              data={profile}
+              onChange={changeProfile}
               onNext={() => transition(3)}
               onSkip={() => transition(3)}
             />
           )}
           {step === 3 && (
-            <StepGoals
-              data={goalsData}
-              onChange={changeGoal}
+            <StepInstitutions
+              selected={institutions}
+              onToggle={toggleInstitution}
+              country={profile.country}
               onNext={() => transition(4)}
               onSkip={() => transition(4)}
             />
           )}
           {step === 4 && (
+            <StepGoals
+              data={goalsData}
+              onChange={changeGoal}
+              currency={profile.currency}
+              onNext={() => transition(5)}
+              onSkip={() => transition(5)}
+            />
+          )}
+          {step === 5 && (
             <StepFinish
               profile={profile}
               goals={goalsData}
