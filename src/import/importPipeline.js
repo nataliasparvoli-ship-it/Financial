@@ -143,6 +143,10 @@ export const importFile = async (file) => {
   };
 };
 
+export const clearImportedFileRegistry = () => {
+  try { localStorage.removeItem("financial-dashboard.importedFiles.v1"); } catch {}
+};
+
 export const importFiles = async (files) => {
   const results = await Promise.all(files.map(importFile));
   const data = results.reduce(
