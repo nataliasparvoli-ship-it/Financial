@@ -106,10 +106,14 @@ export default function UploadPanel({
       >
         <div>
           <p style={{ color: "#f1f5f9", fontWeight: 800, margin: "0 0 4px" }}>
-            {dragging ? "Solte o arquivo aqui ↓" : "Importar dados financeiros"}
+            {dragging ? "Solte o arquivo aqui ↓" : "Importar extrato ou carteira"}
           </p>
           <p style={{ color: "#64748b", fontSize: 12, margin: 0 }}>
-            CSV ou PDF · Nubank, Itaú, Bradesco, XP, BTG, Inter e outros.
+            CSV ou PDF · Transações (Nubank, Itaú, XP, BTG…) ou custódia de investimentos
+            <br />
+            <span style={{ color: "#475569" }}>
+              PNG / JPG / WEBP · Screenshot da carteira — extração automática via IA ✦
+            </span>
           </p>
         </div>
 
@@ -161,10 +165,10 @@ export default function UploadPanel({
                 }}
               />
             )}
-            {isImporting ? "Importando..." : "↑ Selecionar CSV / PDF"}
+            {isImporting ? "Importando..." : "↑ Selecionar arquivo"}
             <input
               ref={inputRef}
-              accept=".csv,.txt,.pdf,text/csv,application/pdf"
+              accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/png,image/jpeg,image/webp"
               multiple
               onChange={handleInputChange}
               style={{ display: "none" }}

@@ -1,15 +1,14 @@
-import { useState, useRef } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { useState, useRef, useMemo } from "react";
 import { fmtK } from "../utils/formatters.js";
 import { formatDateToday } from "../services/formattingService.js";
+import {
+  assetClassColorMap,
+  assetClassOptions,
+} from "../domain/assetClassRegistry.js";
 
-const TIPO_COLORS = {
-  "Renda Fixa":"#60a5fa","Tesouro":"#34d399","FII":"#fbbf24",
-  "Ações":"#f87171","Renda Variável":"#f87171","Cripto":"#e879f9",
-  "Previdência":"#a78bfa","Fundos":"#fb923c","ETF":"#38bdf8","Outros":"#94a3b8",
-};
-
-const TIPOS = Object.keys(TIPO_COLORS);
+// Cores e tipos vêm do registry centralizado — sem duplicação.
+const TIPO_COLORS = assetClassColorMap();
+const TIPOS = assetClassOptions().map((cls) => cls.label);
 
 function ManualForm({ onAdd }) {
   const [f, setF] = useState({
@@ -185,16 +184,15 @@ function OcrReviewModal({ result, onConfirm, onDismiss }) {
 
 export default function InvestmentsTab({ hook }) {
   const {
-    investments, totalValue, byType, byInst,
+    investments, totalValue, byType,
     isProcessingImage, ocrResult, ocrError,
-    addManual, update, remove,
-    processImage, confirmOcr, dismissOcr, clearAll,
+    addManual, remove,
+    processImage, confirmOcr, dismissOcr,
   } = hook;
 
   const imgRef = useRef();
   const [dragging, setDragging] = useState(false);
-
-  const pieData = Object.entries(byType).map(([tipo, valor]) => ({ tipo, valor }));
+  const [showForm, setShowForm] = useState(false);
 
   const handleDrop = (e) => {
     e.preventDefault(); setDragging(false);
@@ -202,73 +200,223 @@ export default function InvestmentsTab({ hook }) {
     if (file) processImage(file);
   };
 
+  // Top 3 positions by value
+  const topPositions = useMemo(
+    () => [...investments].sort((a, b) => b.valor - a.valor).slice(0, 3),
+    [investments],
+  );
+
   return (
     <div>
-      {/* OCR review modal */}
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+
+      {/* OCR review modal — shown inline at top when active */}
       {ocrResult && (
         <OcrReviewModal result={ocrResult} onConfirm={confirmOcr} onDismiss={dismissOcr} />
       )}
 
-      {/* KPIs */}
-      <div style={{ display:"flex", gap:12, marginBottom:20, flexWrap:"wrap" }}>
-        {[
-          { label:"Total investido", value: fmtK(totalValue), color:"#34d399" },
-          { label:"Posições",        value: String(investments.length), color:"#60a5fa" },
-          { label:"Classes",         value: String(Object.keys(byType).length), color:"#a78bfa" },
-          { label:"Instituições",    value: String(Object.keys(byInst).length), color:"#fbbf24" },
-        ].map((k) => (
-          <div key={k.label} style={{
-            background:"linear-gradient(135deg,#0f172a,#1e293b)",
-            border:`1px solid ${k.color}33`, borderRadius:12,
-            padding:"16px 20px", flex:1, minWidth:140,
+      {/* ── Hero: total + position count ── */}
+      <div style={{
+        background: "linear-gradient(160deg, #0a1628 0%, #0f1f35 60%, #0a1628 100%)",
+        border: "1px solid #1e3a5f", borderRadius: 20,
+        padding: "20px 22px 16px", marginBottom: 14,
+        position: "relative", overflow: "hidden",
+      }}>
+        <div style={{
+          position: "absolute", top: -50, right: -50, width: 200, height: 200,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, #60a5fa08 0%, transparent 65%)",
+          pointerEvents: "none",
+        }} />
+        <p style={{
+          color: "#334155", fontSize: 10, textTransform: "uppercase",
+          letterSpacing: 2, margin: "0 0 6px", fontFamily: "'DM Mono',monospace",
+        }}>
+          Carteira de Investimentos
+        </p>
+        <p style={{
+          color: investments.length > 0 ? "#60a5fa" : "#334155",
+          fontSize: 36, fontWeight: 800, margin: "0 0 12px",
+          fontFamily: "'DM Mono',monospace", letterSpacing: -1, lineHeight: 1,
+        }}>
+          {investments.length > 0 ? fmtK(totalValue) : "—"}
+        </p>
+        {investments.length > 0 && (
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1fr",
+            borderTop: "1px solid #1e293b50", paddingTop: 12, gap: 0,
           }}>
-            <p style={{ color:"#64748b", fontSize:10, textTransform:"uppercase",
-              letterSpacing:1.5, margin:0, fontFamily:"'DM Mono',monospace" }}>{k.label}</p>
-            <p style={{ color:k.color, fontSize:24, fontWeight:700, margin:"8px 0 0",
-              fontFamily:"'DM Mono',monospace" }}>{k.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20 }}>
-        {/* Chart */}
-        {pieData.length > 0 && (
-          <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:12, padding:"16px 8px" }}>
-            <p style={{ color:"#64748b", fontSize:10, textTransform:"uppercase",
-              letterSpacing:1.5, margin:"0 0 12px 12px", fontFamily:"'DM Mono',monospace" }}>
-              Por tipo
-            </p>
-            <div style={{ height:200 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie data={pieData} dataKey="valor" nameKey="tipo" cx="50%" cy="50%" outerRadius={80} innerRadius={45}>
-                    {pieData.map((d, i) => (
-                      <Cell key={i} fill={TIPO_COLORS[d.tipo] || "#94a3b8"} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v) => fmtK(v)}
-                    contentStyle={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:8, fontSize:12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {[
+              { label: "Posições",  value: String(investments.length), color: "#60a5fa" },
+              { label: "Classes",   value: String(Object.keys(byType).length), color: "#a78bfa" },
+            ].map((s) => (
+              <div key={s.label}>
+                <p style={{
+                  color: "#475569", fontSize: 9, textTransform: "uppercase",
+                  letterSpacing: 1.5, margin: "0 0 3px", fontFamily: "'DM Mono',monospace",
+                }}>
+                  {s.label}
+                </p>
+                <p style={{ color: s.color, fontSize: 15, fontWeight: 700, margin: 0, fontFamily: "'DM Mono',monospace" }}>
+                  {s.value}
+                </p>
+              </div>
+            ))}
           </div>
         )}
+        {investments.length === 0 && (
+          <p style={{ color: "#334155", fontSize: 13, margin: 0 }}>
+            Adicione posições para começar.
+          </p>
+        )}
+      </div>
 
-        {/* Image upload */}
+      {/* ── Top positions ── */}
+      {topPositions.length > 0 && (
+        <div style={{
+          background: "#0f172a", border: "1px solid #1e293b",
+          borderRadius: 16, padding: "14px 18px", marginBottom: 14,
+        }}>
+          <p style={{
+            color: "#475569", fontSize: 10, textTransform: "uppercase",
+            letterSpacing: 1.5, margin: "0 0 10px", fontFamily: "'DM Mono',monospace",
+          }}>
+            Maiores Posições
+          </p>
+          {topPositions.map((inv) => {
+            const pct = totalValue > 0 ? (inv.valor / totalValue) * 100 : 0;
+            const color = TIPO_COLORS[inv.tipo] || "#94a3b8";
+            return (
+              <div key={inv.id} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ color: "#e2e8f0", fontSize: 12, fontFamily: "'Syne',sans-serif" }}>
+                    {inv.nome}
+                  </span>
+                  <span style={{ color, fontSize: 12, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>
+                    {fmtK(inv.valor)}
+                  </span>
+                </div>
+                <div style={{ background: "#1e293b", borderRadius: 3, height: 3, overflow: "hidden" }}>
+                  <div style={{
+                    width: `${Math.min(pct, 100)}%`, height: "100%", borderRadius: 3,
+                    background: `linear-gradient(90deg, ${color}, ${color}88)`,
+                    transition: "width 0.7s ease",
+                  }} />
+                </div>
+                <p style={{ color: "#334155", fontSize: 10, margin: "2px 0 0", fontFamily: "'DM Mono',monospace" }}>
+                  {inv.instituicao} · {inv.tipo} · {pct.toFixed(1)}%
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Full position list ── */}
+      {investments.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <p style={{
+            color: "#475569", fontSize: 10, textTransform: "uppercase",
+            letterSpacing: 1.5, margin: "0 0 10px", fontFamily: "'DM Mono',monospace",
+          }}>
+            Todas as Posições ({investments.length})
+          </p>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {investments.map((inv) => (
+              <div key={inv.id} style={{
+                background:"#0f172a", border:"1px solid #1e293b", borderRadius:10,
+                padding:"12px 16px", display:"flex", alignItems:"center", gap:10,
+              }}>
+                <div style={{
+                  width:8, height:8, borderRadius:"50%", flexShrink:0,
+                  background: TIPO_COLORS[inv.tipo] || "#94a3b8",
+                }} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ color:"#f1f5f9", fontSize:13, fontWeight:600, margin:0 }}>{inv.nome}</p>
+                  <p style={{ color:"#475569", fontSize:11, margin:"2px 0 0", fontFamily:"'DM Mono',monospace" }}>
+                    {inv.instituicao} · {inv.tipo}
+                    {inv.source === "ocr" && " · OCR"}
+                  </p>
+                </div>
+                <span style={{ color:"#60a5fa", fontSize:14, fontWeight:700, fontFamily:"'DM Mono',monospace" }}>
+                  {fmtK(inv.valor)}
+                </span>
+                <button
+                  onClick={() => remove(inv.id)}
+                  style={{ background:"transparent", border:"none", color:"#334155", cursor:"pointer", fontSize:16, padding:0 }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Add position ── */}
+      <div style={{
+        background: "#0f172a", border: "1px solid #1e293b",
+        borderRadius: 16, padding: "14px 18px", marginBottom: 14,
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{
+            color: "#475569", fontSize: 10, textTransform: "uppercase",
+            letterSpacing: 1.5, margin: 0, fontFamily: "'DM Mono',monospace",
+          }}>
+            Adicionar Posição
+          </p>
+          {!showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              style={{
+                background: "transparent", border: "1px solid #334155",
+                borderRadius: 8, color: "#94a3b8", cursor: "pointer",
+                fontSize: 12, padding: "5px 10px", fontFamily: "'Syne',sans-serif",
+              }}
+            >
+              + Manual
+            </button>
+          )}
+        </div>
+        {showForm && (
+          <div style={{ marginTop: 14 }}>
+            <ManualForm onAdd={(entry) => { addManual(entry); setShowForm(false); }} />
+            <button
+              onClick={() => setShowForm(false)}
+              style={{
+                marginTop: 8, background: "transparent", border: "none",
+                color: "#475569", cursor: "pointer", fontSize: 12,
+                fontFamily: "'Syne',sans-serif",
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Import via screenshot ── */}
+      <div style={{
+        background: "#0f172a", border: "1px solid #1e293b",
+        borderRadius: 16, padding: "14px 18px",
+      }}>
+        <p style={{
+          color: "#475569", fontSize: 10, textTransform: "uppercase",
+          letterSpacing: 1.5, margin: "0 0 12px", fontFamily: "'DM Mono',monospace",
+        }}>
+          Importar Screenshot
+        </p>
         <div
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           onClick={() => !isProcessingImage && imgRef.current?.click()}
           style={{
-            background: dragging ? "#60a5fa11" : "#0f172a",
-            border: `2px dashed ${dragging ? "#60a5fa" : "#334155"}`,
-            borderRadius:12, padding:"24px 16px", textAlign:"center",
+            background: dragging ? "#60a5fa11" : "#020617",
+            border: `2px dashed ${dragging ? "#60a5fa" : "#1e293b"}`,
+            borderRadius: 10, padding: "16px", textAlign: "center",
             cursor: isProcessingImage ? "not-allowed" : "pointer",
-            transition:"all 0.2s", display:"flex", flexDirection:"column",
-            alignItems:"center", justifyContent:"center", minHeight:160,
+            transition: "all 0.2s",
           }}
         >
           <input
@@ -279,83 +427,24 @@ export default function InvestmentsTab({ hook }) {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) processImage(f); e.target.value=""; }}
           />
           {isProcessingImage ? (
-            <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               <div style={{
-                width:32, height:32, border:"3px solid #1e293b",
-                borderTopColor:"#60a5fa", borderRadius:"50%",
-                animation:"spin 0.8s linear infinite", marginBottom:12,
+                width: 16, height: 16, border: "2px solid #1e293b",
+                borderTopColor: "#60a5fa", borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
               }} />
-              <p style={{ color:"#60a5fa", fontSize:13, margin:0 }}>Analisando imagem com IA...</p>
-            </>
+              <p style={{ color:"#60a5fa", fontSize:12, margin:0 }}>Analisando com IA...</p>
+            </div>
           ) : (
-            <>
-              <p style={{ fontSize:32, margin:"0 0 8px" }}>📸</p>
-              <p style={{ color:"#f1f5f9", fontWeight:700, fontSize:13, margin:"0 0 4px" }}>
-                Importar screenshot de investimentos
-              </p>
-              <p style={{ color:"#475569", fontSize:11, margin:0 }}>
-                PNG, JPG, JPEG · Nubank, XP, BTG, Itaú...
-              </p>
-            </>
+            <p style={{ color:"#475569", fontSize:12, margin:0 }}>
+              Arraste ou clique · PNG, JPG · Nubank, XP, BTG...
+            </p>
           )}
           {ocrError && (
-            <p style={{ color:"#f87171", fontSize:12, margin:"8px 0 0" }}>{ocrError}</p>
+            <p style={{ color:"#f87171", fontSize:11, margin:"8px 0 0" }}>{ocrError}</p>
           )}
         </div>
       </div>
-
-      {/* Manual form */}
-      <div style={{ marginBottom:20 }}>
-        <ManualForm onAdd={addManual} />
-      </div>
-
-      {/* Investments list */}
-      {investments.length > 0 && (
-        <div>
-          <p style={{ color:"#64748b", fontSize:10, textTransform:"uppercase",
-            letterSpacing:1.5, margin:"0 0 10px", fontFamily:"'DM Mono',monospace" }}>
-            Posições ({investments.length})
-          </p>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            {investments.map((inv) => (
-              <div key={inv.id} style={{
-                background:"#0f172a", border:"1px solid #1e293b", borderRadius:10,
-                padding:"12px 16px", display:"flex", alignItems:"center", gap:10,
-              }}>
-                <div style={{
-                  width:10, height:10, borderRadius:"50%", flexShrink:0,
-                  background: TIPO_COLORS[inv.tipo] || "#94a3b8",
-                }} />
-                <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ color:"#f1f5f9", fontSize:13, fontWeight:600, margin:0 }}>{inv.nome}</p>
-                  <p style={{ color:"#475569", fontSize:11, margin:"2px 0 0", fontFamily:"'DM Mono',monospace" }}>
-                    {inv.instituicao} · {inv.tipo} · {inv.data}
-                    {inv.source === "ocr" && " · 📸 OCR"}
-                    {inv.source === "manual" && " · ✍️ Manual"}
-                  </p>
-                </div>
-                {inv.rentabilidade != null && (
-                  <span style={{ color:"#34d399", fontSize:12, fontFamily:"'DM Mono',monospace" }}>
-                    +{(inv.rentabilidade * 100).toFixed(2)}%
-                  </span>
-                )}
-                <span style={{ color:"#34d399", fontSize:15, fontWeight:700,
-                  fontFamily:"'DM Mono',monospace" }}>
-                  {fmtK(inv.valor)}
-                </span>
-                <button
-                  onClick={() => remove(inv.id)}
-                  style={{ background:"transparent", border:"none", color:"#334155", cursor:"pointer", fontSize:16 }}
-                >
-                  🗑
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
